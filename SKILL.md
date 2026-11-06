@@ -2,7 +2,7 @@
 name: process-diagnosis-pipeline
 description: "把《流程圣经》(Rummler-Brache) 的诊断方法论做成一条可执行流水线：先向用户采集 8 项必填信息（业务/症状/范围/数据/决策人），再按『定方向 → 画现状 → 找断点 → 重设计 → 锁指标 → 交制度』六阶段生成产物，最终产出『一条主干、三条铁律、五个工具、三张纸』（诊断页/流程页/价值页）。Use whenever the user asks 流程诊断 / 九格诊断 / 九变量 / 断点清单 / 泳道图 / 流程图诊断 / 流程改进方案 / 指标链 / M1 M2 M3 / 基线怎么定 / 售前诊断 / FDE 现场诊断 / 客户说交付慢、库存高、质量差、设备停机 / 帮我做个诊断模板 / 生成诊断报告 / 三张纸, or wants an intake form + generated diagnosis package for a manufacturing, SAP PP-QM-PM, or smart-factory scenario. 也用于把一次客户访谈整理成可交付的诊断包，或检查已有诊断包是否缺项（scripts/check_package.py）。含 D 轨道「AI 上岗」：手上已有断点时，判断能不能交给 AI、写准入规则、定放权范围与观察期（能不能上 AI / 这条该不该上 AI / 准入规则怎么写 / 权限边界怎么定 / 什么时候能开 auto / observe 多久 / AI 上岗第一步）。"
 metadata:
-  version: "2"
+  version: "3"
 ---
 
 # 流程诊断流水线（Rummler-Brache × FDE 售前）

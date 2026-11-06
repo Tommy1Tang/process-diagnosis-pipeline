@@ -42,6 +42,65 @@ def check_rows(text, min_rows=3):
     return max(0, len(rows) - 1)  # 去掉表头
 
 
+# 六动作的标准写法，以及同义词归一化
+ACTION_ALIASES = {
+    "消除": "消除", "取消": "消除",
+    "简化": "简化",
+    "合并": "合并",
+    "并行": "并行",
+    "质量内置": "质量内置", "内置": "质量内置",
+    "授权": "授权",
+    "自动化": "自动化", "上系统": "自动化", "系统化": "自动化", "数字化": "自动化",
+}
+
+
+def action_column(text):
+    """定位「动作」列的下标；认不出表头时默认第 2 列。"""
+    for ln in text.splitlines():
+        s = ln.strip()
+        if not s.startswith("|"):
+            continue
+        cells = [c.strip().replace("*", "").strip() for c in s.strip("|").split("|")]
+        for i, c in enumerate(cells):
+            if c in ("动作", "改造动作", "动作类型", "类型", "六动作"):
+                return i
+    return 1
+
+
+def action_words(text):
+    """按出现顺序提取改造动作。
+
+    只认表格的「动作」列（没有表格时退化为列表项开头），
+    这样前言、引用块里提到的「自动化」不会影响顺序判断。
+    """
+    found = []
+    col = action_column(text)
+
+    for ln in text.splitlines():
+        s = ln.strip()
+        if not s.startswith("|"):
+            continue
+        cells = [c.strip().replace("*", "").strip() for c in s.strip("|").split("|")]
+        if len(cells) <= col:
+            continue
+        cell = cells[col]
+        for word, canon in ACTION_ALIASES.items():
+            if cell.startswith(word):
+                found.append(canon)
+                break
+    if found:
+        return found
+
+    # 退化：认 "- 消除 …" "1. 消除 …" 这类列表项
+    for ln in text.splitlines():
+        s = re.sub(r"^\s*(?:[-*+]|\d+[.)、])\s*", "", ln).replace("*", "")
+        for word, canon in ACTION_ALIASES.items():
+            if s.startswith(word):
+                found.append(canon)
+                break
+    return found
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("package", help="诊断包目录")
@@ -86,13 +145,20 @@ def main():
         if not re.search(r"年化|[0-9]+\s*万|元/年", texts["03"]):
             fails.append("03_断点清单.md 没有年化影响估算（没有数字的断点不算断点）")
 
-    # 04 改造：不许把自动化排第一
+    # 04 改造：自动化不得作为第一条（只看动作列的顺序，不看全文词出现位置）
     if "04" in texts:
-        body = texts["04"]
-        first_auto = body.find("自动化")
-        first_elim = body.find("消除")
-        if first_auto != -1 and (first_elim == -1 or first_auto < first_elim):
-            fails.append("04_改造清单.md 把「自动化」排在「消除」之前（铁律：先消除再自动化）")
+        acts = action_words(texts["04"])
+        if not acts:
+            warns.append("04_改造清单.md 未识别到「动作」列，无法校验顺序（建议按模板写「| 序 | 动作 | … |」）")
+        elif acts[0] == "自动化":
+            fails.append("04_改造清单.md 第一条就是「自动化」（铁律：先消除，再自动化；上系统不得作为第一条）")
+        elif "自动化" in acts:
+            idx = acts.index("自动化") + 1
+            oks.append("04_改造清单.md 六动作顺序合规（%d 条，自动化排第 %d）" % (len(acts), idx))
+            if "消除" not in acts[:idx - 1]:
+                warns.append("04_改造清单.md 的「自动化」之前没有「消除」条目——确认本期确实没有可消除的环节")
+        else:
+            warns.append("04_改造清单.md 没有「自动化」条目；若本期不上系统可忽略")
 
     # 05 指标链：M2 必须挂 M1
     if "05" in texts:
